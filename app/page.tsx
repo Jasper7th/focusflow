@@ -1,65 +1,326 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import CalendarView from "./components/CalendarView";
+import AppTabs from "./components/AppTabs";
+import DashboardSection from "./components/DashboardSection";
+import CoursesSection from "./components/CoursesSection";
+import WeeklyPlannerView from "./components/WeeklyPlannerView";
+import { useCourses } from "./hooks/useCourses";
+
+export type TaskType = "assignment" | "exam" | "study" | "other";
+export type TaskPriority = "low" | "medium" | "high";
+
+export type Task = {
+  id: string;
+  title: string;
+  completed: boolean;
+  type: TaskType;
+  priority: TaskPriority;
+  dueDate: string;
+  estimatedMinutes: number;
+};
+
+export type NewTaskData = {
+  title: string;
+  type: TaskType;
+  priority: TaskPriority;
+  dueDate: string;
+  estimatedMinutes: number;
+};
+
+export type Course = {
+  id: string;
+  name: string;
+  tasks: Task[];
+};
+
+export type TaskWithCourse = Task & {
+  courseName: string;
+};
+
+export type PlannedBlock = {
+  id: string;
+  courseId: string;
+  taskId?: string;
+  title: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  notes?: string;
+};
+
+type View = "dashboard" | "calendar" | "weekly" | "courses";
+
+function createId() {
+  return crypto.randomUUID();
+}
+
+function isSameDay(dateString: string, compareDate: Date) {
+  if (!dateString) return false;
+
+  const date = new Date(`${dateString}T00:00:00`);
+
+  return (
+    date.getFullYear() === compareDate.getFullYear() &&
+    date.getMonth() === compareDate.getMonth() &&
+    date.getDate() === compareDate.getDate()
+  );
+}
+
+function isBeforeDay(dateString: string, compareDate: Date) {
+  if (!dateString) return false;
+
+  const date = new Date(`${dateString}T00:00:00`);
+  const compare = new Date(compareDate);
+  compare.setHours(0, 0, 0, 0);
+
+  return date.getTime() < compare.getTime();
+}
+
+function normalizePlannedBlocks(data: unknown): PlannedBlock[] {
+  if (!Array.isArray(data)) return [];
+
+  return data.map((block) => {
+    const typedBlock = block as Partial<PlannedBlock>;
+
+    return {
+      id: typedBlock.id ?? createId(),
+      courseId: typedBlock.courseId ?? "",
+      taskId: typedBlock.taskId || undefined,
+      title: typedBlock.title ?? "",
+      date: typedBlock.date ?? "",
+      startTime: typedBlock.startTime ?? "09:00",
+      durationMinutes: typedBlock.durationMinutes ?? 60,
+      notes: typedBlock.notes || undefined,
+    };
+  });
+}
 
 export default function Home() {
+  const {
+    courseName,
+    courses,
+    setCourseName,
+    handleAddCourse,
+    handleDeleteCourse,
+    handleAddTask,
+    handleEditTask,
+    handleRemoveTask,
+    handleToggleTask,
+  } = useCourses();
+
+  const [plannedBlocks, setPlannedBlocks] = useState<PlannedBlock[]>([]);
+  const [hasLoadedPlannedBlocks, setHasLoadedPlannedBlocks] = useState(false);
+
+  const [activeView, setActiveView] = useState<View>("dashboard");
+  const [hasLoadedActiveView, setHasLoadedActiveView] = useState(false);
+
+  // 🔹 Load planned blocks
+  useEffect(() => {
+    const savedBlocks = localStorage.getItem("focusflow-planned-blocks");
+
+    if (!savedBlocks) {
+      setHasLoadedPlannedBlocks(true);
+      return;
+    }
+
+    try {
+      const parsedBlocks = JSON.parse(savedBlocks);
+      const normalizedBlocks = normalizePlannedBlocks(parsedBlocks);
+      setPlannedBlocks(normalizedBlocks);
+    } catch (error) {
+      console.error("Failed to parse planned blocks:", error);
+      localStorage.removeItem("focusflow-planned-blocks");
+    } finally {
+      setHasLoadedPlannedBlocks(true);
+    }
+  }, []);
+
+  // 🔹 Save planned blocks
+  useEffect(() => {
+    if (!hasLoadedPlannedBlocks) return;
+
+    localStorage.setItem(
+      "focusflow-planned-blocks",
+      JSON.stringify(plannedBlocks)
+    );
+  }, [plannedBlocks, hasLoadedPlannedBlocks]);
+
+  // 🔹 Load active tab (hydration-safe)
+  useEffect(() => {
+    const savedView = localStorage.getItem("focusflow-active-view");
+
+    if (
+      savedView === "dashboard" ||
+      savedView === "calendar" ||
+      savedView === "weekly" ||
+      savedView === "courses"
+    ) {
+      setActiveView(savedView);
+    }
+
+    setHasLoadedActiveView(true);
+  }, []);
+
+  // 🔹 Save active tab
+  useEffect(() => {
+    if (!hasLoadedActiveView) return;
+
+    localStorage.setItem("focusflow-active-view", activeView);
+  }, [activeView, hasLoadedActiveView]);
+
+  // 🔹 Clean invalid blocks AFTER courses load
+  useEffect(() => {
+    if (courses.length === 0) return;
+
+    setPlannedBlocks((prev) =>
+      prev.filter((block) => {
+        const course = courses.find((item) => item.id === block.courseId);
+
+        if (!course) return false;
+        if (!block.taskId) return true;
+
+        return course.tasks.some((task) => task.id === block.taskId);
+      })
+    );
+  }, [courses]);
+
+  function handleAddPlannedBlock(
+    blockData: Omit<PlannedBlock, "id"> & { taskId?: string; notes?: string }
+  ) {
+    if (!blockData.courseId || blockData.title.trim() === "" || !blockData.date)
+      return;
+
+    const newBlock: PlannedBlock = {
+      id: createId(),
+      courseId: blockData.courseId,
+      taskId: blockData.taskId || undefined,
+      title: blockData.title.trim(),
+      date: blockData.date,
+      startTime: blockData.startTime,
+      durationMinutes: blockData.durationMinutes,
+      notes: blockData.notes?.trim() || undefined,
+    };
+
+    setPlannedBlocks((prev) => [...prev, newBlock]);
+  }
+
+  function handleEditPlannedBlock(
+    blockId: string,
+    updatedBlock: Omit<PlannedBlock, "id"> & { taskId?: string; notes?: string }
+  ) {
+    if (
+      !updatedBlock.courseId ||
+      updatedBlock.title.trim() === "" ||
+      !updatedBlock.date
+    ) {
+      return;
+    }
+
+    setPlannedBlocks((prev) =>
+      prev.map((block) =>
+        block.id === blockId
+          ? {
+              ...block,
+              ...updatedBlock,
+              title: updatedBlock.title.trim(),
+              notes: updatedBlock.notes?.trim() || undefined,
+            }
+          : block
+      )
+    );
+  }
+
+  function handleRemovePlannedBlock(blockId: string) {
+    setPlannedBlocks((prev) =>
+      prev.filter((block) => block.id !== blockId)
+    );
+  }
+
+  const dashboardData = useMemo(() => {
+    const today = new Date();
+
+    const allIncompleteTasks: TaskWithCourse[] = courses.flatMap((course) =>
+      course.tasks
+        .filter((task) => !task.completed)
+        .map((task) => ({
+          ...task,
+          courseName: course.name,
+        }))
+    );
+
+    return {
+      overdueTasks: allIncompleteTasks.filter((t) =>
+        isBeforeDay(t.dueDate, today)
+      ),
+      dueTodayTasks: allIncompleteTasks.filter((t) =>
+        isSameDay(t.dueDate, today)
+      ),
+      upcomingExams: allIncompleteTasks.filter((t) => t.type === "exam"),
+      totalEstimatedMinutesRemaining: allIncompleteTasks.reduce(
+        (sum, task) => sum + task.estimatedMinutes,
+        0
+      ),
+      totalCompletedTasks: courses.reduce(
+        (sum, c) => sum + c.tasks.filter((t) => t.completed).length,
+        0
+      ),
+    };
+  }, [courses]);
+
+  const allCalendarTasks = useMemo(() => {
+    return courses.flatMap((course) =>
+      course.tasks
+        .filter((task) => task.dueDate)
+        .map((task) => ({
+          ...task,
+          courseName: course.name,
+        }))
+    );
+  }, [courses]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="min-h-screen bg-black px-6 py-8 text-white md:px-8">
+      <div className="mx-auto max-w-[1800px]">
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold">FocusFlow</h1>
+        </header>
+
+        <AppTabs activeView={activeView} onChangeView={setActiveView} />
+
+        {activeView === "dashboard" && (
+          <DashboardSection dashboardData={dashboardData} />
+        )}
+
+        {activeView === "calendar" && (
+          <CalendarView tasks={allCalendarTasks} />
+        )}
+
+        {activeView === "weekly" && (
+          <WeeklyPlannerView
+            courses={courses}
+            plannedBlocks={plannedBlocks}
+            onAddBlock={handleAddPlannedBlock}
+            onEditBlock={handleEditPlannedBlock}
+            onRemoveBlock={handleRemovePlannedBlock}
+          />
+        )}
+
+        {activeView === "courses" && (
+          <CoursesSection
+            courseName={courseName}
+            courses={courses}
+            onCourseNameChange={setCourseName}
+            onAddCourse={handleAddCourse}
+            onDeleteCourse={handleDeleteCourse}
+            onAddTask={handleAddTask}
+            onEditTask={handleEditTask}
+            onRemoveTask={handleRemoveTask}
+            onToggleTask={handleToggleTask}
+          />
+        )}
+      </div>
+    </main>
   );
 }
