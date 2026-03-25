@@ -4,7 +4,7 @@ A student productivity app that combines task tracking with a weekly time-block 
 
 ## Live Demo
 
-https://your-vercel-link.vercel.app
+[https://your-vercel-link.vercel.app](https://focusflow-olive.vercel.app/)
 
 ## Features
 
