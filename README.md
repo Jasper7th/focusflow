@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FocusFlow – Student Planner App
 
-## Getting Started
+A student productivity app that combines task tracking with a weekly time-block planner, plus AI-assisted schedule generation.
 
-First, run the development server:
+## Live Demo
+
+https://your-vercel-link.vercel.app
+
+## Features
+
+* Course-based task organization
+* Task priorities and due dates
+* Dashboard (overdue, due today, upcoming)
+* Weekly planner with time blocking
+* AI-generated weekly study plans
+* Local storage persistence
+
+## Tech Stack
+
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+* OpenAI API
+
+## Screenshots
+
+<img width="3838" height="1993" alt="image" src="https://github.com/user-attachments/assets/57c436d4-2cec-4610-ba23-6286d4a9aada" />
+
+<img width="3834" height="1992" alt="image" src="https://github.com/user-attachments/assets/2ebd0ef1-bb39-4308-9925-a0a8b7f6a0b7" />
+
+<img width="3835" height="1980" alt="image" src="https://github.com/user-attachments/assets/b6f54f7f-aa29-4f13-8160-5bc11af816b3" />
+
+<img width="3839" height="1990" alt="image" src="https://github.com/user-attachments/assets/1aa1d9a6-0ab2-4f5c-9e18-fbacff29969d" />
+
+
+
+## Running Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Why I Built This
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+I wanted a planner that matches how I actually work week-to-week, combining assignments with time-blocked scheduling. I also explored using AI to automate study planning based on workload.
